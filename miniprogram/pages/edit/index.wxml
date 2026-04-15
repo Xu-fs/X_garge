@@ -1,0 +1,83 @@
+<view class="page">
+  <view class="hero edit-hero">
+    <view>
+      <view class="hero-title">{{texts.heroTitle}}</view>
+      <view class="hero-desc">{{texts.heroDesc}}</view>
+    </view>
+  </view>
+
+  <view class="form-panel static-panel">
+    <view class="form-item">
+      <view class="form-label">{{texts.imageLabel}}</view>
+      <view class="image-upload" bindtap="chooseImages">
+        <view class="upload-title">{{texts.addImage}}</view>
+        <view class="upload-tip">{{texts.uploadTip}}</view>
+      </view>
+      <view class="thumb-list" wx:if="{{form.images.length}}">
+        <view class="thumb-item" wx:for="{{form.images}}" wx:key="index">
+          <image class="thumb-image" src="{{item}}" mode="aspectFill"></image>
+          <view class="thumb-remove" data-index="{{index}}" catchtap="removeImage">x</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.modelBrandLabel}}</view>
+      <input class="form-input" placeholder="{{texts.modelBrandPlaceholder}}" value="{{form.modelBrand}}" data-field="modelBrand" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.serialNumberLabel}}</view>
+      <input class="form-input" placeholder="{{texts.serialNumberPlaceholder}}" value="{{form.serialNumber}}" data-field="serialNumber" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.vehicleBrandLabel}}</view>
+      <input class="form-input" placeholder="{{texts.vehicleBrandPlaceholder}}" value="{{form.vehicleBrand}}" data-field="vehicleBrand" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.specificModelLabel}}</view>
+      <input class="form-input" placeholder="{{texts.specificModelPlaceholder}}" value="{{form.specificModel}}" data-field="specificModel" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.colorLabel}}</view>
+      <input class="form-input" placeholder="{{texts.colorPlaceholder}}" value="{{form.colorText}}" data-field="color" bindinput="onInputChange" />
+      <view class="form-tip">{{texts.colorHint}}</view>
+      <view class="tag-toggle" wx:if="{{availableColors.length}}" bindtap="toggleColorTags">{{showColorTags ? texts.collapseColorTags : texts.expandColorTags}}</view>
+      <view class="tag-preview" wx:if="{{availableColors.length && showColorTags}}">
+        <view class="tag-chip {{form.colorList.indexOf(item) !== -1 ? 'tag-chip-active' : ''}}" wx:for="{{availableColors}}" wx:key="*this" data-color="{{item}}" catchtap="selectFormColor">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.tagsLabel}}</view>
+      <input class="form-input" placeholder="{{texts.tagsPlaceholder}}" value="{{form.tagText}}" data-field="tagText" bindinput="onInputChange" />
+      <view class="form-tip">{{texts.tagsHint}}</view>
+      <view class="tag-toggle" wx:if="{{availableTags.length}}" bindtap="toggleTagSuggestions">{{showTagSuggestions ? texts.collapseTagSuggestions : texts.expandTagSuggestions}}</view>
+      <view class="tag-preview" wx:if="{{filteredTags.length && showTagSuggestions}}">
+        <view class="tag-chip {{form.tagList.indexOf(item) !== -1 ? 'tag-chip-active' : ''}}" wx:for="{{filteredTags}}" wx:key="*this" data-tag="{{item}}" catchtap="selectFormTag">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.purchaseDateLabel}}</view>
+      <picker mode="date" value="{{form.purchaseDate}}" bindchange="onDateChange">
+        <view class="form-picker {{form.purchaseDate ? 'filled' : ''}}">{{form.purchaseDateText}}</view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.purchasePriceLabel}}</view>
+      <input class="form-input" placeholder="{{texts.purchasePricePlaceholder}}" value="{{form.purchasePrice}}" data-field="purchasePrice" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.noteLabel}}</view>
+      <textarea class="form-textarea" placeholder="{{texts.notePlaceholder}}" value="{{form.note}}" data-field="note" bindinput="onInputChange" maxlength="-1"></textarea>
+    </view>
+
+    <button class="primary-button full-button" bindtap="submitForm">{{texts.saveButton}}</button>
+  </view>
+</view>

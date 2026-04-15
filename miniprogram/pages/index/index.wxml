@@ -1,0 +1,189 @@
+<view class="page">
+  <view wx:if="{{currentTab === 'garage'}}" class="section">
+    <view class="page-title">{{texts.garageTitle}}</view>
+
+    <view class="search-bar">
+      <input class="search-input" placeholder="{{texts.searchPlaceholder}}" value="{{searchKeyword}}" bindinput="onSearchInput" />
+      <view class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">{{texts.clear}}</view>
+    </view>
+
+    <view class="filter-shell">
+      <view class="panel-row">
+        <view class="panel-group panel-half {{showSortPanel ? 'panel-active' : ''}}">
+          <view class="expand-header" bindtap="toggleSortPanel">
+            <view class="expand-title">{{texts.sort}}</view>
+            <view class="expand-arrow {{showSortPanel ? 'expand-arrow-open' : ''}}">></view>
+          </view>
+          <view class="expand-overlay" wx:if="{{showSortPanel}}">
+            <view class="sort-options">
+              <view class="sort-chip {{sortKey === item.key ? 'sort-chip-active' : ''}}" wx:for="{{sortOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="changeSort">{{item.label}}</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="panel-group panel-half {{showCategoryPanel ? 'panel-active' : ''}}">
+          <view class="expand-header" bindtap="toggleCategoryPanel">
+            <view class="expand-title">{{texts.category}}</view>
+            <view class="expand-arrow {{showCategoryPanel ? 'expand-arrow-open' : ''}}">></view>
+          </view>
+          <view class="expand-overlay" wx:if="{{showCategoryPanel}}">
+            <view class="category-label">{{texts.categoryDimension}}</view>
+            <view class="sort-options category-space">
+              <view class="sort-chip {{categoryField === item.key ? 'sort-chip-active' : ''}}" wx:for="{{categoryFields}}" wx:key="key" data-key="{{item.key}}" bindtap="changeCategoryField">{{item.label}}</view>
+            </view>
+            <view class="category-label">{{texts.categoryValue}}</view>
+            <view class="sort-options">
+              <view class="sort-chip {{categoryValue === item ? 'sort-chip-active' : ''}}" wx:for="{{categoryValues}}" wx:key="*this" data-value="{{item}}" bindtap="changeCategoryValue">{{item}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="grid">
+      <view class="card" wx:for="{{vehicles}}" wx:key="id" data-id="{{item.id}}" bindtap="openDetail">
+        <image class="card-image" src="{{item.coverImage}}" mode="aspectFill"></image>
+        <view class="card-body">
+          <view class="car-name">{{item.vehicleBrand}}{{item.specificModel}}</view>
+          <view class="car-meta car-model-brand">{{texts.modelBrandLabel}}: {{item.modelBrand}}</view>
+          <view class="car-meta" wx:if="{{item.serialNumber}}">{{texts.serialNumberLabel}}: {{item.serialNumber}}</view>
+          <view class="car-meta">{{texts.purchaseDateLabel}}: {{item.purchaseDate}}</view>
+          <view class="car-price">{{texts.purchasePriceLabel}}: {{item.purchasePrice}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty" wx:if="{{!vehicles.length}}">{{texts.empty}}</view>
+  </view>
+
+  <view wx:if="{{currentTab === 'add'}}" class="section">
+    <view class="hero add-hero">
+      <view>
+        <view class="hero-title">{{texts.addTitle}}</view>
+        <view class="hero-desc">{{texts.addDesc}}</view>
+      </view>
+    </view>
+
+    <view class="form-panel static-panel">
+      <view class="form-item">
+        <view class="form-label">{{texts.imageLabel}}</view>
+        <view class="image-upload" bindtap="chooseImages">
+          <view class="upload-title">{{texts.addImage}}</view>
+          <view class="upload-tip">{{texts.uploadTip}}</view>
+        </view>
+        <view class="thumb-list" wx:if="{{form.images.length}}">
+          <view class="thumb-item" wx:for="{{form.images}}" wx:key="index">
+            <image class="thumb-image" src="{{item}}" mode="aspectFill"></image>
+            <view class="thumb-remove" data-index="{{index}}" catchtap="removeImage">x</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.modelBrandLabel}}</view>
+        <input class="form-input" placeholder="{{texts.modelBrandPlaceholder}}" value="{{form.modelBrand}}" data-field="modelBrand" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.serialNumberLabel}}</view>
+        <input class="form-input" placeholder="{{texts.serialNumberPlaceholder}}" value="{{form.serialNumber}}" data-field="serialNumber" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.vehicleBrandLabel}}</view>
+        <input class="form-input" placeholder="{{texts.vehicleBrandPlaceholder}}" value="{{form.vehicleBrand}}" data-field="vehicleBrand" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.specificModelLabel}}</view>
+        <input class="form-input" placeholder="{{texts.specificModelPlaceholder}}" value="{{form.specificModel}}" data-field="specificModel" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.colorLabel}}</view>
+        <input class="form-input" placeholder="{{texts.colorPlaceholder}}" value="{{form.colorText}}" data-field="color" bindinput="onInputChange" />
+        <view class="form-tip">{{texts.colorHint}}</view>
+        <view class="tag-toggle" wx:if="{{availableColors.length}}" bindtap="toggleColorTags">{{showColorTags ? texts.collapseColorTags : texts.expandColorTags}}</view>
+        <view class="tag-preview" wx:if="{{availableColors.length && showColorTags}}">
+          <view class="tag-chip {{form.colorList.indexOf(item) !== -1 ? 'tag-chip-active' : ''}}" wx:for="{{availableColors}}" wx:key="*this" data-color="{{item}}" catchtap="selectFormColor">{{item}}</view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.tagsLabel}}</view>
+        <input class="form-input" placeholder="{{texts.tagsPlaceholder}}" value="{{form.tagText}}" data-field="tagText" bindinput="onInputChange" />
+        <view class="form-tip">{{texts.tagsHint}}</view>
+        <view class="tag-toggle" wx:if="{{availableTags.length}}" bindtap="toggleTagSuggestions">{{showTagSuggestions ? texts.collapseTagSuggestions : texts.expandTagSuggestions}}</view>
+        <view class="tag-preview" wx:if="{{filteredTags.length && showTagSuggestions}}">
+          <view class="tag-chip {{form.tagList.indexOf(item) !== -1 ? 'tag-chip-active' : ''}}" wx:for="{{filteredTags}}" wx:key="*this" data-tag="{{item}}" catchtap="selectFormTag">{{item}}</view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.purchaseDateLabel}}</view>
+        <picker mode="date" value="{{form.purchaseDate}}" bindchange="onDateChange">
+          <view class="form-picker {{form.purchaseDate ? 'filled' : ''}}">{{form.purchaseDateText}}</view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.purchasePriceLabel}}</view>
+        <input class="form-input" placeholder="{{texts.purchasePricePlaceholder}}" value="{{form.purchasePrice}}" data-field="purchasePrice" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{texts.noteLabel}}</view>
+        <textarea class="form-textarea" placeholder="{{texts.notePlaceholder}}" value="{{form.note}}" data-field="note" bindinput="onInputChange" maxlength="-1"></textarea>
+      </view>
+
+      <button class="primary-button full-button" bindtap="submitForm">{{texts.submitAdd}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{currentTab === 'profile'}}" class="section">
+    <view class="hero profile-hero">
+      <view>
+        <view class="hero-title">{{texts.profileTitle}}</view>
+        <view class="hero-desc">{{texts.profileDesc}}</view>
+      </view>
+    </view>
+
+    <view class="profile-card login-card">
+      <view class="profile-title">{{texts.accountLogin}}</view>
+
+      <view class="profile-editor">
+        <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{loginProfile.avatarUrl}}" class="avatar-image" src="{{loginProfile.avatarUrl}}" mode="aspectFill"></image>
+          <view wx:else class="avatar-placeholder">{{texts.avatar}}</view>
+        </button>
+        <input class="nickname-input" type="nickname" placeholder="{{texts.nicknamePlaceholder}}" value="{{loginProfile.nickname}}" bindinput="onNicknameInput" bindblur="onNicknameBlur" />
+      </view>
+
+      <view class="profile-text" wx:if="{{loginProfile.nickname}}">{{texts.nicknameLabel}}: {{loginProfile.nickname}}</view>
+      <view class="profile-text" wx:if="{{loginProfile.loginTime}}">{{texts.loginTimeLabel}}: {{loginProfile.loginTime}}</view>
+      <view class="profile-text" wx:if="{{loginProfile.openid}}">OpenID: {{loginProfile.openid}}</view>
+      <view class="profile-text" wx:if="{{loginProfile.appid}}">AppID: {{loginProfile.appid}}</view>
+      <view class="profile-text" wx:if="{{loginProfile.unionid}}">UnionID: {{loginProfile.unionid}}</view>
+      <view class="profile-text" wx:if="{{loginProfile.loginCode && !loginProfile.openid}}">{{texts.loginCodeLabel}}: {{loginProfile.loginCode}}</view>
+      <view class="profile-text">{{texts.totalVehiclesLabel}}: {{rawVehicles.length}} {{texts.totalVehiclesUnit}}</view>
+
+      <view class="login-actions">
+        <button class="primary-button profile-button" bindtap="loginAccount" loading="{{loginLoading}}">{{loginProfile.isLoggedIn ? texts.reloginButton : texts.loginButton}}</button>
+        <button class="ghost-button profile-button" bindtap="logoutAccount">{{texts.logoutButton}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="tabbar">
+    <view class="tab-item {{currentTab === 'garage' ? 'tab-item-active' : ''}}" data-tab="garage" bindtap="switchTab">
+      <view class="tab-text">{{texts.garageTab}}</view>
+    </view>
+    <view class="tab-item tab-item-center {{currentTab === 'add' ? 'tab-item-active' : ''}}" data-tab="add" bindtap="switchTab">
+      <view class="plus-icon">+</view>
+      <view class="tab-text">{{texts.addTab}}</view>
+    </view>
+    <view class="tab-item {{currentTab === 'profile' ? 'tab-item-active' : ''}}" data-tab="profile" bindtap="switchTab">
+      <view class="tab-text">{{texts.profileTab}}</view>
+    </view>
+  </view>
+</view>

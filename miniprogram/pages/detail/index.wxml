@@ -1,0 +1,67 @@
+<view class="page" wx:if="{{vehicle}}">
+  <swiper class="gallery" indicator-dots="{{vehicle.images.length > 1}}" circular="{{vehicle.images.length > 1}}">
+    <swiper-item wx:for="{{vehicle.images}}" wx:key="index">
+      <view class="gallery-item" data-current="{{item}}" bindtap="previewImage">
+        <image class="hero-image" src="{{item}}" mode="aspectFill"></image>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <view class="detail-card">
+    <view class="detail-title">{{vehicle.vehicleBrand}}{{vehicle.specificModel}}</view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.vehicleBrandLabel}}</view>
+      <view class="detail-value">{{vehicle.vehicleBrand}}</view>
+    </view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.specificModelLabel}}</view>
+      <view class="detail-value">{{vehicle.specificModel}}</view>
+    </view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.modelBrandLabel}}</view>
+      <view class="detail-value">{{vehicle.modelBrand}}</view>
+    </view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.colorLabel}}</view>
+      <view class="detail-value">{{vehicle.color}}</view>
+    </view>
+
+    <view class="detail-row" wx:if="{{vehicle.tagText}}">
+      <view class="detail-label">{{texts.tagsLabel}}</view>
+      <view class="detail-value">{{vehicle.tagText}}</view>
+    </view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.purchaseDateLabel}}</view>
+      <view class="detail-value">{{vehicle.purchaseDate}}</view>
+    </view>
+
+    <view class="detail-row">
+      <view class="detail-label">{{texts.purchasePriceLabel}}</view>
+      <view class="detail-value accent">{{vehicle.purchasePrice}}</view>
+    </view>
+
+    <view class="detail-row" wx:if="{{vehicle.note}}">
+      <view class="detail-label">{{texts.noteLabel}}</view>
+      <view class="detail-value">{{vehicle.note}}</view>
+    </view>
+  </view>
+
+  <view class="edit-fab" bindtap="editVehicle">{{texts.editButton}}</view>
+
+  <view class="delete-fab" bindtap="deleteVehicle">
+    <view class="trash-icon">
+      <view class="trash-top"></view>
+      <view class="trash-lid"></view>
+      <view class="trash-can">
+        <view class="trash-line"></view>
+        <view class="trash-line"></view>
+        <view class="trash-line"></view>
+      </view>
+    </view>
+  </view>
+</view>
