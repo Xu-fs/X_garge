@@ -169,6 +169,18 @@ page {
   color: #5b6472;
 }
 
+.excel-actions {
+  display: flex;
+  gap: 16rpx;
+  margin: -4rpx 0 20rpx;
+}
+
+.excel-button {
+  flex: 1;
+  height: 76rpx;
+  font-size: 24rpx;
+}
+
 .grid {
   display: flex;
   flex-wrap: wrap;
@@ -541,4 +553,53 @@ page {
   font-size: 26rpx;
   color: #0f172a;
   line-height: 1.7;
+}
+
+.template-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36rpx;
+  background: rgba(15, 23, 42, 0.5);
+  box-sizing: border-box;
+}
+
+.template-modal {
+  width: 100%;
+  max-width: 680rpx;
+  max-height: 84vh;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+  box-shadow: 0 24rpx 60rpx rgba(15, 23, 42, 0.24);
+  box-sizing: border-box;
+}
+
+.template-modal-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #14213d;
+}
+
+.template-modal-hint {
+  margin-top: 10rpx;
+  margin-bottom: 18rpx;
+  font-size: 23rpx;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+.template-preview-image {
+  width: 100%;
+  border-radius: 20rpx;
+  background: #f8fafc;
+  border: 2rpx solid #e2e8f0;
+}
+
+.template-close-button {
+  margin-top: 20rpx;
+  height: 76rpx;
 }

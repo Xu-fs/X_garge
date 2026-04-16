@@ -1,17 +1,22 @@
 App({
   onLaunch() {
     this.globalData = {
-      env: ''
+      env: 'cloud1-7gqhwo2q6f73408d'
     };
 
     if (!wx.cloud) {
-      console.error('请使用 2.2.3 或以上的基础库以使用云能力');
+      console.error('Please use base library 2.2.3 or above to enable cloud capability.');
       return;
     }
 
-    wx.cloud.init({
-      env: this.globalData.env,
+    const cloudOptions = {
       traceUser: true
-    });
+    };
+
+    if (this.globalData.env) {
+      cloudOptions.env = this.globalData.env;
+    }
+
+    wx.cloud.init(cloudOptions);
   }
 });

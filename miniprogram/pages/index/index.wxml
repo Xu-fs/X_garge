@@ -64,6 +64,11 @@
       </view>
     </view>
 
+    <view class="excel-actions">
+      <button class="ghost-button excel-button" bindtap="importVehicleExcel">{{texts.importExcelButton}}</button>
+      <button class="ghost-button excel-button" bindtap="openExcelTemplate">{{texts.templateButton}}</button>
+    </view>
+
     <view class="form-panel static-panel">
       <view class="form-item">
         <view class="form-label">{{texts.imageLabel}}</view>
@@ -174,6 +179,14 @@
     </view>
   </view>
 
+  <view class="template-mask" wx:if="{{showTemplatePreview}}" catchtap="closeTemplatePreview">
+    <view class="template-modal" catchtap="noop">
+      <view class="template-modal-title">{{texts.templatePreviewTitle}}</view>
+      <view class="template-modal-hint">{{texts.templatePreviewHint}}</view>
+      <image class="template-preview-image" src="/assets/template-preview.svg" mode="widthFix"></image>
+      <button class="primary-button template-close-button" bindtap="closeTemplatePreview">{{texts.clear}}</button>
+    </view>
+  </view>
   <view class="tabbar">
     <view class="tab-item {{currentTab === 'garage' ? 'tab-item-active' : ''}}" data-tab="garage" bindtap="switchTab">
       <view class="tab-text">{{texts.garageTab}}</view>

@@ -12,6 +12,17 @@ const TEXTS = {
   empty: '\u6ca1\u6709\u641c\u7d22\u5230\u76f8\u5173\u8f66\u8f86\uff0c\u8bd5\u8bd5\u522b\u7684\u5173\u952e\u8bcd\u3002',
   addTitle: '\u6dfb\u52a0\u8f66\u8f86',
   addDesc: '\u53ef\u4ee5\u6dfb\u52a0\u591a\u5f20\u56fe\u7247\uff0c\u7b2c\u4e00\u5f20\u4f1a\u81ea\u52a8\u4f5c\u4e3a\u5c01\u9762\u663e\u793a\u5728\u8f66\u5e93\u5217\u8868\u91cc\u3002',
+  importExcelButton: '\u5bfc\u5165Excel',
+  templateButton: '\u8f66\u6a21\u4fe1\u606f\u8868\u6a21\u677f',
+  importingExcel: '\u6b63\u5728\u5bfc\u5165',
+  importSuccess: '\u5bfc\u5165\u6210\u529f',
+  importBatchSuccess: '\u6279\u91cf\u5bfc\u5165\u6210\u529f',
+  importNoData: '\u6ca1\u6709\u53ef\u5bfc\u5165\u7684\u5185\u5bb9',
+  importFailed: '\u5bfc\u5165\u5931\u8d25',
+  templateOpenFailed: '\u6a21\u677f\u6253\u5f00\u5931\u8d25',
+  templatePreviewTitle: '\u6a21\u677f\u9884\u89c8',
+  templatePreviewHint: '\u6309\u7167\u8fd9\u5f20\u793a\u610f\u56fe\u586b\u5199 Excel \u5373\u53ef',
+  importNeedCloud: '\u8bf7\u5148\u914d\u7f6e\u4e91\u73af\u5883',
   imageLabel: '\u8f66\u8f86\u56fe\u7247\uff08\u53ef\u591a\u9009\uff09',
   addImage: '\u6dfb\u52a0\u56fe\u7247',
   serialNumberLabel: '\u7f16\u53f7',
@@ -305,6 +316,36 @@ function getFilteredSuggestions(items, input) {
   return items.filter((item) => String(item || '').toLowerCase().indexOf(keyword) !== -1);
 }
 
+function buildImportedVehicles(rows) {
+  const baseId = Date.now();
+  return rows
+    .map((row, index) => normalizeVehicle({
+      id: baseId + index,
+      images: [],
+      coverImage: '',
+      modelBrand: row.modelBrand || '',
+      serialNumber: row.serialNumber || '',
+      vehicleBrand: row.vehicleBrand || '',
+      specificModel: row.specificModel || '',
+      color: row.color || '',
+      tags: row.tags || '',
+      purchaseDate: row.purchaseDate || '',
+      purchasePrice: row.purchasePrice || '',
+      note: row.note || ''
+    }))
+    .filter((vehicle) => [
+      vehicle.modelBrand,
+      vehicle.serialNumber,
+      vehicle.vehicleBrand,
+      vehicle.specificModel,
+      vehicle.color,
+      vehicle.tagText,
+      vehicle.purchaseDate,
+      vehicle.purchasePrice,
+      vehicle.note
+    ].some((item) => String(item || '').trim()));
+}
+
 Page({
   data: {
     texts: TEXTS,
@@ -327,7 +368,8 @@ Page({
     showColorTags: false,
     showTagSuggestions: false,
     loginProfile: createEmptyLoginProfile(),
-    loginLoading: false
+    loginLoading: false,
+    showTemplatePreview: false
   },
 
   onLoad() {
@@ -550,6 +592,85 @@ Page({
     wx.navigateTo({ url: '/pages/detail/index?id=' + e.currentTarget.dataset.id });
   },
 
+  openExcelTemplate() {
+    this.setData({ showTemplatePreview: true });
+  },
+
+
+  importVehicleExcel() {
+    if (!wx.cloud) {
+      wx.showToast({ title: TEXTS.importNeedCloud, icon: 'none' });
+      return;
+    }
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['xlsx', 'xls'],
+      success: (res) => {
+        const tempFile = (res.tempFiles || [])[0];
+        const filePath = tempFile && (tempFile.path || tempFile.tempFilePath);
+        if (!filePath) {
+          wx.showToast({ title: TEXTS.importFailed, icon: 'none' });
+          return;
+        }
+        const fileName = String(tempFile.name || 'vehicle-import.xlsx');
+        const ext = fileName.toLowerCase().endsWith('.xls') ? 'xls' : 'xlsx';
+        wx.showLoading({ title: TEXTS.importingExcel, mask: true });
+        wx.cloud.uploadFile({
+          cloudPath: 'vehicle-import/' + Date.now() + '-' + Math.random().toString(16).slice(2) + '.' + ext,
+          filePath: filePath
+        }).then((uploadRes) => {
+          return wx.cloud.callFunction({
+            name: 'quickstartFunctions',
+            data: {
+              type: 'parseVehicleExcel',
+              fileID: uploadRes.fileID
+            }
+          });
+        }).then((callRes) => {
+          const rows = (callRes.result && callRes.result.rows) || [];
+          const importedVehicles = buildImportedVehicles(rows);
+          if (!importedVehicles.length) {
+            wx.hideLoading();
+            wx.showToast({ title: TEXTS.importNoData, icon: 'none' });
+            return;
+          }
+          const rawVehicles = importedVehicles.concat(this.data.rawVehicles);
+          const categoryValues = getCategoryValues(rawVehicles, this.data.categoryField);
+          const categoryValue = categoryValues.indexOf(this.data.categoryValue) !== -1 ? this.data.categoryValue : TEXTS.all;
+          const vehicles = this.applyFilters(rawVehicles, this.data.sortKey, this.data.searchKeyword, this.data.categoryField, categoryValue);
+          const availableTags = getAvailableTags(rawVehicles, []);
+          const availableColors = getAvailableColors(rawVehicles, []);
+          this.saveVehicles(rawVehicles);
+          this.setData({
+            rawVehicles: rawVehicles,
+            categoryValues: categoryValues,
+            categoryValue: categoryValue,
+            vehicles: vehicles,
+            currentTab: 'garage',
+            form: createEmptyForm(),
+            availableTags: availableTags,
+            availableColors: availableColors,
+            filteredTags: getFilteredSuggestions(availableTags, ''),
+            showColorTags: false,
+            showTagSuggestions: false
+          });
+          wx.hideLoading();
+          wx.showToast({ title: importedVehicles.length > 1 ? TEXTS.importBatchSuccess : TEXTS.importSuccess, icon: 'success' });
+        }).catch(() => {
+          wx.hideLoading();
+          wx.showToast({ title: TEXTS.importFailed, icon: 'none' });
+        });
+      }
+    });
+  },
+  closeTemplatePreview() {
+    this.setData({ showTemplatePreview: false });
+  },
+
+
+  noop() {},
+
   chooseImages() {
     wx.chooseMedia({
       count: 9,
@@ -567,7 +688,6 @@ Page({
       }
     });
   },
-
   removeImage(e) {
     const index = Number(e.currentTarget.dataset.index);
     const images = this.data.form.images.filter((item, currentIndex) => currentIndex !== index);
