@@ -8,17 +8,7 @@
 
   <view class="form-panel static-panel">
     <view class="form-item">
-      <view class="form-label">{{texts.imageLabel}}</view>
-      <view class="image-upload" bindtap="chooseImages">
-        <view class="upload-title">{{texts.addImage}}</view>
-        <view class="upload-tip">{{texts.uploadTip}}</view>
-      </view>
-      <view class="thumb-list" wx:if="{{form.images.length}}">
-        <view class="thumb-item" wx:for="{{form.images}}" wx:key="index">
-          <image class="thumb-image" src="{{item}}" mode="aspectFill"></image>
-          <view class="thumb-remove" data-index="{{index}}" catchtap="removeImage">x</view>
-        </view>
-      </view>
+      <user-image-uploader title="{{texts.imageLabel}}" scope-id="{{vehicleIdText}}" initial-images="{{form.images}}" bindchange="onCloudImagesChange" />
     </view>
 
     <view class="form-item">
@@ -71,6 +61,14 @@
     <view class="form-item">
       <view class="form-label">{{texts.purchasePriceLabel}}</view>
       <input class="form-input" placeholder="{{texts.purchasePricePlaceholder}}" value="{{form.purchasePrice}}" data-field="purchasePrice" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">{{texts.purchaseChannelLabel}}</view>
+      <input class="form-input" placeholder="{{texts.purchaseChannelPlaceholder}}" value="{{form.purchaseChannel}}" data-field="purchaseChannel" bindinput="onInputChange" />
+      <view class="tag-preview">
+        <view class="tag-chip {{form.purchaseChannel === item ? 'tag-chip-active' : ''}}" wx:for="{{purchaseChannels}}" wx:key="*this" data-channel="{{item}}" catchtap="selectPurchaseChannel">{{item}}</view>
+      </view>
     </view>
 
     <view class="form-item">

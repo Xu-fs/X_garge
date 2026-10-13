@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "编辑车辆"
+  "navigationBarTitleText": "编辑车辆",
+  "usingComponents": {
+    "user-image-uploader": "/components/userImageUploader/index"
+  }
 }

@@ -10,3 +10,6 @@
 
 - [云开发文档](https://developers.weixin.qq.com/miniprogram/dev/wxcloud/basis/getting-started.html)
 
+## 项目功能文档
+
+- [用户图片上传：权限、部署与完整测试](docs/CLOUDBASE_IMAGE_UPLOAD.md)

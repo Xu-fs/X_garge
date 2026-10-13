@@ -1,6 +1,15 @@
 const STORAGE_KEY = 'garageVehicles';
 const LOGIN_STORAGE_KEY = 'garageLoginProfile';
 
+function callGarageVehicles(type, data) {
+  return wx.cloud.callFunction({ name: 'garageVehicles', data: Object.assign({ type }, data || {}) })
+    .then((response) => {
+      const result = response.result || {};
+      if (!result.success) throw new Error(result.errMsg || '云端保存失败');
+      return result;
+    });
+}
+
 const TEXTS = {
   garageTitle: '\u6211\u7684\u8f66\u5e93',
   searchPlaceholder: '\u641c\u7d22\u5173\u952e\u8bcd\uff1a\u5177\u4f53\u578b\u53f7 / \u8f66\u8f86\u54c1\u724c / \u8f66\u6a21\u54c1\u724c / \u6807\u7b7e',
@@ -47,6 +56,8 @@ const TEXTS = {
   purchaseDatePlaceholder: '\u8bf7\u9009\u62e9\u8d2d\u5165\u65f6\u95f4',
   purchasePriceLabel: '\u8d2d\u5165\u4ef7\u683c',
   purchasePricePlaceholder: '\u4f8b\u5982\uff1a299\u5143',
+  purchaseChannelLabel: '\u8d2d\u5165\u6e20\u9053',
+  purchaseChannelPlaceholder: '\u8bf7\u8f93\u5165\u8d2d\u5165\u6e20\u9053',
   noteLabel: '\u5907\u6ce8',
   notePlaceholder: '\u53ef\u4ee5\u8f93\u5165\u8fd9\u53f0\u8f66\u7684\u5907\u6ce8\u4fe1\u606f',
   submitAdd: '\u786e\u8ba4\u6dfb\u52a0',
@@ -80,24 +91,10 @@ const TEXTS = {
   addSuccess: '\u6dfb\u52a0\u6210\u529f'
 };
 
-const defaultVehicles = [
-  {
-    id: 1,
-    coverImage: '/images/default_lambo_gt3_evo2.jpg',
-    images: ['/images/default_lambo_gt3_evo2.jpg'],
-    specificModel: '\u98d3\u98ceGT3 EVO2',
-    modelBrand: 'MINI GT',
-    serialNumber: '1064',
-    vehicleBrand: '\u5170\u535a\u57fa\u5c3c',
-    color: '\u7d2b\u8272\u3001\u7eff\u8272',
-    tags: ['GT3'],
-    purchaseDate: '2025-11-11',
-    purchasePrice: '',
-    note: ''
-  }
-];
+const purchaseChannels = ['\u6dd8\u5b9d', '\u4eac\u4e1c', '\u62fc\u591a\u591a', '\u5c0f\u7a0b\u5e8f', '\u7ebf\u4e0b'];
 
 const sortOptions = [
+  { key: 'manual', label: '\u81ea\u5b9a\u4e49\u6392\u5e8f' },
   { key: 'initial', label: '\u9996\u5b57\u6bcd\u6392\u5e8f' },
   { key: 'purchaseDate', label: '\u8d2d\u5165\u65f6\u95f4' },
   { key: 'vehicleBrand', label: '\u8f66\u8f86\u54c1\u724c' },
@@ -153,6 +150,8 @@ function normalizeVehicle(vehicle) {
     tagText: tags.join(', '),
     purchaseDate: vehicle.purchaseDate || '',
     purchasePrice: vehicle.purchasePrice || '',
+    purchaseChannel: vehicle.purchaseChannel || '',
+    isPinned: Boolean(vehicle.isPinned),
     note: vehicle.note || ''
   };
 }
@@ -173,6 +172,7 @@ function createEmptyForm() {
     purchaseDate: '',
     purchaseDateText: TEXTS.purchaseDatePlaceholder,
     purchasePrice: '',
+    purchaseChannel: '',
     note: ''
   };
 }
@@ -208,6 +208,13 @@ function getSortText(vehicle) {
 function sortVehicles(vehicles, sortKey) {
   const nextVehicles = vehicles.slice();
   nextVehicles.sort((a, b) => {
+    const pinDifference = Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned));
+    if (pinDifference) {
+      return pinDifference;
+    }
+    if (sortKey === 'manual') {
+      return 0;
+    }
     if (sortKey === 'purchaseDate') {
       return String(b.purchaseDate || '').localeCompare(String(a.purchaseDate || ''));
     }
@@ -232,6 +239,7 @@ function filterVehicles(vehicles, keyword, categoryField, categoryValue) {
         vehicle.color,
         vehicle.purchaseDate,
         vehicle.purchasePrice,
+        vehicle.purchaseChannel,
         vehicle.note,
         vehicle.tagText
       ].join(' ').toLowerCase();
@@ -331,6 +339,7 @@ function buildImportedVehicles(rows) {
       tags: row.tags || '',
       purchaseDate: row.purchaseDate || '',
       purchasePrice: row.purchasePrice || '',
+      purchaseChannel: row.purchaseChannel || '',
       note: row.note || ''
     }))
     .filter((vehicle) => [
@@ -342,6 +351,7 @@ function buildImportedVehicles(rows) {
       vehicle.tagText,
       vehicle.purchaseDate,
       vehicle.purchasePrice,
+      vehicle.purchaseChannel,
       vehicle.note
     ].some((item) => String(item || '').trim()));
 }
@@ -362,6 +372,7 @@ Page({
     categoryValue: TEXTS.all,
     searchKeyword: '',
     form: createEmptyForm(),
+    purchaseChannels: purchaseChannels,
     availableTags: [],
     availableColors: [],
     filteredTags: [],
@@ -369,7 +380,10 @@ Page({
     showTagSuggestions: false,
     loginProfile: createEmptyLoginProfile(),
     loginLoading: false,
-    showTemplatePreview: false
+    showTemplatePreview: false,
+    draftVehicleId: Date.now(),
+    dragSortMode: false,
+    draggingId: 0
   },
 
   onLoad() {
@@ -387,9 +401,8 @@ Page({
   },
 
   loadVehicles() {
-    const storedVehicles = wx.getStorageSync(STORAGE_KEY);
-    const baseVehicles = storedVehicles && storedVehicles.length ? storedVehicles : defaultVehicles;
-    const rawVehicles = baseVehicles.map(normalizeVehicle);
+    return callGarageVehicles('list').then((result) => {
+    const rawVehicles = (result.vehicles || []).map(normalizeVehicle);
     const categoryField = categoryFields.some((item) => item.key === this.data.categoryField) ? this.data.categoryField : 'vehicleBrand';
     const categoryValues = getCategoryValues(rawVehicles, categoryField);
     const categoryValue = categoryValues.indexOf(this.data.categoryValue) !== -1 ? this.data.categoryValue : TEXTS.all;
@@ -398,7 +411,9 @@ Page({
     const availableColors = getAvailableColors(rawVehicles, this.data.form.colorList);
     const filteredTags = getFilteredSuggestions(availableTags, this.data.form.tagText);
     this.setData({ rawVehicles, categoryField, categoryValues, categoryValue, vehicles, availableTags, availableColors, filteredTags });
-    this.saveVehicles(rawVehicles);
+    }).catch((error) => {
+      wx.showToast({ title: error.message || '读取云端车库失败', icon: 'none' });
+    });
   },
 
   saveVehicles(vehicles) {
@@ -586,10 +601,143 @@ Page({
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
     this.setData({ currentTab: tab, showSortPanel: false, showCategoryPanel: false });
+    if (tab === 'add') {
+      setTimeout(() => {
+        const uploader = this.selectComponent('#addImageUploader');
+        if (uploader) uploader.loadImages();
+      }, 0);
+    }
   },
 
   openDetail(e) {
+    if (this.data.dragSortMode) {
+      return;
+    }
     wx.navigateTo({ url: '/pages/detail/index?id=' + e.currentTarget.dataset.id });
+  },
+
+  onCardLongPress(e) {
+    const id = Number(e.currentTarget.dataset.id);
+    if (this.data.dragSortMode) {
+      this.startCardDrag(e);
+      return;
+    }
+    const vehicle = this.data.rawVehicles.find((item) => item.id === id);
+    if (!vehicle) {
+      return;
+    }
+    wx.showActionSheet({
+      itemList: [vehicle.isPinned ? '\u53d6\u6d88\u7f6e\u9876' : '\u7f6e\u9876', '\u62d6\u52a8\u6392\u5e8f', '\u5220\u9664'],
+      success: (result) => {
+        if (result.tapIndex === 0) {
+          this.toggleVehiclePin(id);
+        } else if (result.tapIndex === 1) {
+          this.enableDragSort();
+        } else if (result.tapIndex === 2) {
+          this.deleteVehicleFromList(id);
+        }
+      }
+    });
+  },
+
+  toggleVehiclePin(id) {
+    const rawVehicles = this.data.rawVehicles.map((vehicle) => Object.assign({}, vehicle, {
+      isPinned: vehicle.id === id ? !vehicle.isPinned : vehicle.isPinned
+    }));
+    const vehicle = rawVehicles.find((item) => item.id === id);
+    callGarageVehicles('update', { vehicle }).then(() => this.loadVehicles()).catch((error) => wx.showToast({ title: error.message, icon: 'none' }));
+  },
+
+  deleteVehicleFromList(id) {
+    wx.showModal({
+      title: '\u5220\u9664\u8f66\u6a21',
+      content: '\u786e\u8ba4\u5220\u9664\u8fd9\u53f0\u8f66\u6a21\u5417\uff1f',
+      success: (result) => {
+        if (!result.confirm) {
+          return;
+        }
+        const rawVehicles = this.data.rawVehicles.filter((vehicle) => vehicle.id !== id);
+        callGarageVehicles('delete', { id }).then(() => {
+          this.loadVehicles();
+          wx.showToast({ title: '\u5df2\u5220\u9664', icon: 'success' });
+        }).catch((error) => wx.showToast({ title: error.message, icon: 'none' }));
+      }
+    });
+  },
+
+  enableDragSort() {
+    this.setData({
+      dragSortMode: true,
+      sortKey: 'manual',
+      searchKeyword: '',
+      categoryValue: TEXTS.all,
+      showSortPanel: false,
+      showCategoryPanel: false,
+      vehicles: this.applyFilters(this.data.rawVehicles, 'manual', '', this.data.categoryField, TEXTS.all)
+    });
+    wx.showToast({ title: '\u957f\u6309\u5e76\u62d6\u52a8\u8f66\u6a21\u5361\u7247', icon: 'none' });
+  },
+
+  finishDragSort() {
+    this.setData({ dragSortMode: false, draggingId: 0 });
+  },
+
+  startCardDrag(e) {
+    const id = Number(e.currentTarget.dataset.id);
+    wx.createSelectorQuery()
+      .in(this)
+      .selectAll('.card')
+      .boundingClientRect((rects) => {
+        this.dragRects = rects || [];
+        this.setData({ draggingId: id });
+      })
+      .exec();
+  },
+
+  moveCardDrag(e) {
+    if (!this.data.draggingId || !this.dragRects || !this.dragRects.length) {
+      return;
+    }
+    const touch = (e.touches || [])[0];
+    if (!touch) {
+      return;
+    }
+    let targetIndex = -1;
+    let nearestDistance = Infinity;
+    this.dragRects.forEach((rect, index) => {
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distance = Math.pow(touch.pageX - centerX, 2) + Math.pow(touch.pageY - centerY, 2);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        targetIndex = index;
+      }
+    });
+    this.dragTargetIndex = targetIndex;
+  },
+
+  endCardDrag() {
+    const sourceId = this.data.draggingId;
+    const targetIndex = this.dragTargetIndex;
+    this.dragTargetIndex = -1;
+    this.setData({ draggingId: 0 });
+    if (!sourceId || targetIndex < 0) {
+      return;
+    }
+    const visibleVehicles = this.data.vehicles.slice();
+    const sourceIndex = visibleVehicles.findIndex((vehicle) => vehicle.id === sourceId);
+    if (sourceIndex < 0 || sourceIndex === targetIndex) {
+      return;
+    }
+    const moved = visibleVehicles.splice(sourceIndex, 1)[0];
+    visibleVehicles.splice(targetIndex, 0, moved);
+    const order = visibleVehicles.map((vehicle) => vehicle.id);
+    const orderMap = {};
+    order.forEach((id, index) => { orderMap[id] = index; });
+    const rawVehicles = this.data.rawVehicles.slice().sort((a, b) => orderMap[a.id] - orderMap[b.id]);
+    callGarageVehicles('reorder', { order }).then(() => {
+      this.setData({ rawVehicles, vehicles: this.applyFilters(rawVehicles, 'manual', '', this.data.categoryField, TEXTS.all) });
+    }).catch((error) => wx.showToast({ title: error.message, icon: 'none' }));
   },
 
   openExcelTemplate() {
@@ -641,7 +789,7 @@ Page({
           const vehicles = this.applyFilters(rawVehicles, this.data.sortKey, this.data.searchKeyword, this.data.categoryField, categoryValue);
           const availableTags = getAvailableTags(rawVehicles, []);
           const availableColors = getAvailableColors(rawVehicles, []);
-          this.saveVehicles(rawVehicles);
+          return callGarageVehicles('createMany', { vehicles: importedVehicles }).then(() => {
           this.setData({
             rawVehicles: rawVehicles,
             categoryValues: categoryValues,
@@ -654,6 +802,7 @@ Page({
             filteredTags: getFilteredSuggestions(availableTags, ''),
             showColorTags: false,
             showTagSuggestions: false
+          });
           });
           wx.hideLoading();
           wx.showToast({ title: importedVehicles.length > 1 ? TEXTS.importBatchSuccess : TEXTS.importSuccess, icon: 'success' });
@@ -671,27 +820,12 @@ Page({
 
   noop() {},
 
-  chooseImages() {
-    wx.chooseMedia({
-      count: 9,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFiles = res.tempFiles || [];
-        if (!tempFiles.length) {
-          return;
-        }
-        const selectedImages = tempFiles.map((item) => item.tempFilePath).filter(Boolean);
-        const mergedImages = this.data.form.images.concat(selectedImages).slice(0, 9);
-        this.setData({ 'form.images': mergedImages, 'form.coverImage': mergedImages[0] || '' });
-      }
+  onCloudImagesChange(e) {
+    const detail = e.detail || {};
+    this.setData({
+      'form.images': detail.images || [],
+      'form.coverImage': detail.coverImage || ''
     });
-  },
-  removeImage(e) {
-    const index = Number(e.currentTarget.dataset.index);
-    const images = this.data.form.images.filter((item, currentIndex) => currentIndex !== index);
-    this.setData({ 'form.images': images, 'form.coverImage': images[0] || '' });
   },
 
   toggleColorTags() {
@@ -767,10 +901,14 @@ Page({
     this.setData({ 'form.purchaseDate': e.detail.value, 'form.purchaseDateText': e.detail.value });
   },
 
+  selectPurchaseChannel(e) {
+    this.setData({ 'form.purchaseChannel': String(e.currentTarget.dataset.channel || '') });
+  },
+
   submitForm() {
     const form = this.data.form;
     const vehicle = normalizeVehicle({
-      id: Date.now(),
+      id: this.data.draftVehicleId,
       images: form.images,
       coverImage: form.coverImage,
       specificModel: form.specificModel,
@@ -781,13 +919,14 @@ Page({
       tags: form.tagText,
       purchaseDate: form.purchaseDate,
       purchasePrice: form.purchasePrice,
+      purchaseChannel: form.purchaseChannel,
       note: form.note
     });
     const rawVehicles = [vehicle].concat(this.data.rawVehicles);
     const categoryValues = getCategoryValues(rawVehicles, this.data.categoryField);
     const categoryValue = categoryValues.indexOf(this.data.categoryValue) !== -1 ? this.data.categoryValue : TEXTS.all;
     const vehicles = this.applyFilters(rawVehicles, this.data.sortKey, this.data.searchKeyword, this.data.categoryField, categoryValue);
-    this.saveVehicles(rawVehicles);
+    callGarageVehicles('create', { vehicle }).then(() => {
     this.setData({
       rawVehicles: rawVehicles,
       categoryValues: categoryValues,
@@ -799,8 +938,10 @@ Page({
       availableColors: getAvailableColors(rawVehicles, []),
       filteredTags: getFilteredSuggestions(getAvailableTags(rawVehicles, []), ''),
       showColorTags: false,
-      showTagSuggestions: false
+      showTagSuggestions: false,
+      draftVehicleId: Date.now()
     });
     wx.showToast({ title: TEXTS.addSuccess, icon: 'success' });
+    }).catch((error) => wx.showToast({ title: error.message || '云端保存失败', icon: 'none' }));
   }
 });

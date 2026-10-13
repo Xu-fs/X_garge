@@ -191,6 +191,28 @@ page {
   z-index: 1;
 }
 
+.drag-sort-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  background: #e8eefc;
+  color: #1d4ed8;
+  font-size: 22rpx;
+}
+
+.drag-sort-done {
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #14213d;
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .card {
   position: relative;
   width: 342rpx;
@@ -198,6 +220,28 @@ page {
   border-radius: 24rpx;
   background: #ffffff;
   box-shadow: 0 14rpx 34rpx rgba(20, 33, 61, 0.08);
+}
+
+.card-pinned {
+  box-shadow: 0 14rpx 34rpx rgba(217, 119, 6, 0.18);
+}
+
+.card-dragging {
+  opacity: 0.72;
+  transform: scale(0.96);
+}
+
+.pin-badge {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  z-index: 2;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(217, 119, 6, 0.92);
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 600;
 }
 
 .card-image {

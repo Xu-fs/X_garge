@@ -1,5 +1,13 @@
 const STORAGE_KEY = 'garageVehicles';
 
+function callGarageVehicles(type, data) {
+  return wx.cloud.callFunction({ name: 'garageVehicles', data: Object.assign({ type }, data || {}) }).then((response) => {
+    const result = response.result || {};
+    if (!result.success) throw new Error(result.errMsg || '云端操作失败');
+    return result;
+  });
+}
+
 const TEXTS = {
   vehicleBrandLabel: '\u8f66\u8f86\u54c1\u724c',
   specificModelLabel: '\u5177\u4f53\u578b\u53f7',
@@ -8,6 +16,7 @@ const TEXTS = {
   tagsLabel: '\u81ea\u5b9a\u4e49\u5206\u7c7b',
   purchaseDateLabel: '\u8d2d\u5165\u65f6\u95f4',
   purchasePriceLabel: '\u8d2d\u5165\u4ef7\u683c',
+  purchaseChannelLabel: '\u8d2d\u5165\u6e20\u9053',
   noteLabel: '\u5907\u6ce8',
   notFound: '\u8f66\u8f86\u4e0d\u5b58\u5728',
   deleteTitle: '\u5220\u9664\u8f66\u8f86',
@@ -41,6 +50,7 @@ function normalizeVehicle(vehicle) {
     tagText: tags.join(', '),
     purchaseDate: vehicle.purchaseDate || '',
     purchasePrice: vehicle.purchasePrice || '',
+    purchaseChannel: vehicle.purchaseChannel || '',
     note: vehicle.note || ''
   };
 }
@@ -61,7 +71,8 @@ Page({
   },
 
   loadVehicle() {
-    const vehicles = wx.getStorageSync(STORAGE_KEY) || [];
+    return callGarageVehicles('list').then((result) => {
+    const vehicles = result.vehicles || [];
     const vehicle = vehicles.map(normalizeVehicle).find((item) => item.id === this.vehicleId);
     if (!vehicle) {
       wx.showToast({ title: TEXTS.notFound, icon: 'none' });
@@ -71,6 +82,7 @@ Page({
       return;
     }
     this.setData({ vehicle: vehicle });
+    }).catch((error) => wx.showToast({ title: error.message || '读取云端数据失败', icon: 'none' }));
   },
 
   previewImage(e) {
@@ -92,13 +104,10 @@ Page({
         if (!res.confirm) {
           return;
         }
-        const vehicles = (wx.getStorageSync(STORAGE_KEY) || []).map(normalizeVehicle);
-        const nextVehicles = vehicles.filter((item) => item.id !== this.vehicleId);
-        wx.setStorageSync(STORAGE_KEY, nextVehicles);
-        wx.showToast({ title: TEXTS.deleteSuccess, icon: 'success' });
-        setTimeout(() => {
-          wx.navigateBack();
-        }, 600);
+        callGarageVehicles('delete', { id: this.vehicleId }).then(() => {
+          wx.showToast({ title: TEXTS.deleteSuccess, icon: 'success' });
+          setTimeout(() => wx.navigateBack(), 600);
+        }).catch((error) => wx.showToast({ title: error.message || '云端删除失败', icon: 'none' }));
       }
     });
   }

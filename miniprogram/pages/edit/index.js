@@ -1,5 +1,13 @@
 const STORAGE_KEY = 'garageVehicles';
 
+function callGarageVehicles(type, data) {
+  return wx.cloud.callFunction({ name: 'garageVehicles', data: Object.assign({ type }, data || {}) }).then((response) => {
+    const result = response.result || {};
+    if (!result.success) throw new Error(result.errMsg || '云端操作失败');
+    return result;
+  });
+}
+
 const TEXTS = {
   heroTitle: '\u7f16\u8f91\u8f66\u8f86',
   heroDesc: '\u8fd9\u91cc\u4f1a\u81ea\u52a8\u5e26\u51fa\u539f\u672c\u8f93\u5165\u7684\u4fe1\u606f\uff0c\u4f60\u53ef\u4ee5\u76f4\u63a5\u4fee\u6539\u5e76\u4fdd\u5b58\u3002',
@@ -27,12 +35,16 @@ const TEXTS = {
   purchaseDatePlaceholder: '\u8bf7\u9009\u62e9\u8d2d\u5165\u65f6\u95f4',
   purchasePriceLabel: '\u8d2d\u5165\u4ef7\u683c',
   purchasePricePlaceholder: '\u4f8b\u5982\uff1a299\u5143',
+  purchaseChannelLabel: '\u8d2d\u5165\u6e20\u9053',
+  purchaseChannelPlaceholder: '\u8bf7\u8f93\u5165\u8d2d\u5165\u6e20\u9053',
   noteLabel: '\u5907\u6ce8',
   notePlaceholder: '\u53ef\u4ee5\u8f93\u5165\u8fd9\u53f0\u8f66\u7684\u5907\u6ce8\u4fe1\u606f',
   saveButton: '\u4fdd\u5b58\u4fee\u6539',
   notFound: '\u8f66\u8f86\u4e0d\u5b58\u5728',
   saveSuccess: '\u4fdd\u5b58\u6210\u529f'
 };
+
+const purchaseChannels = ['\u6dd8\u5b9d', '\u4eac\u4e1c', '\u62fc\u591a\u591a', '\u5c0f\u7a0b\u5e8f', '\u7ebf\u4e0b'];
 
 function normalizeTags(input) {
   const source = Array.isArray(input) ? input.join(',') : String(input || '');
@@ -71,6 +83,7 @@ function normalizeVehicle(vehicle) {
     tagText: tags.join(', '),
     purchaseDate: vehicle.purchaseDate || '',
     purchasePrice: vehicle.purchasePrice || '',
+    purchaseChannel: vehicle.purchaseChannel || '',
     note: vehicle.note || ''
   };
 }
@@ -91,6 +104,7 @@ function createEmptyForm() {
     purchaseDate: '',
     purchaseDateText: TEXTS.purchaseDatePlaceholder,
     purchasePrice: '',
+    purchaseChannel: '',
     note: ''
   };
 }
@@ -113,6 +127,7 @@ function createFormFromVehicle(vehicle) {
     purchaseDate: vehicle.purchaseDate || '',
     purchaseDateText: vehicle.purchaseDate || TEXTS.purchaseDatePlaceholder,
     purchasePrice: vehicle.purchasePrice || '',
+    purchaseChannel: vehicle.purchaseChannel || '',
     note: vehicle.note || ''
   };
 }
@@ -157,20 +172,25 @@ Page({
   data: {
     texts: TEXTS,
     form: createEmptyForm(),
+    purchaseChannels: purchaseChannels,
     availableTags: [],
     availableColors: [],
     filteredTags: [],
     showColorTags: false,
-    showTagSuggestions: false
+    showTagSuggestions: false,
+    vehicleIdText: ''
   },
 
   onLoad(options) {
     this.vehicleId = Number(options.id || 0);
+    this.setData({ vehicleIdText: String(this.vehicleId) });
     this.loadVehicle();
   },
 
   loadVehicle() {
-    const vehicles = (wx.getStorageSync(STORAGE_KEY) || []).map(normalizeVehicle);
+    return callGarageVehicles('list').then((result) => {
+    const vehicles = (result.vehicles || []).map(normalizeVehicle);
+    this.vehicles = vehicles;
     const vehicle = vehicles.find((item) => item.id === this.vehicleId);
     if (!vehicle) {
       wx.showToast({ title: TEXTS.notFound, icon: 'none' });
@@ -188,29 +208,15 @@ Page({
       showColorTags: false,
       showTagSuggestions: false
     });
+    }).catch((error) => wx.showToast({ title: error.message || '读取云端数据失败', icon: 'none' }));
   },
 
-  chooseImages() {
-    wx.chooseMedia({
-      count: 9,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: ({ tempFiles }) => {
-        if (!tempFiles || !tempFiles.length) {
-          return;
-        }
-        const selectedImages = tempFiles.map((item) => item.tempFilePath).filter(Boolean);
-        const mergedImages = this.data.form.images.concat(selectedImages).slice(0, 9);
-        this.setData({ 'form.images': mergedImages, 'form.coverImage': mergedImages[0] || '' });
-      }
+  onCloudImagesChange(e) {
+    const detail = e.detail || {};
+    this.setData({
+      'form.images': detail.images || [],
+      'form.coverImage': detail.coverImage || ''
     });
-  },
-
-  removeImage(e) {
-    const index = Number(e.currentTarget.dataset.index);
-    const images = this.data.form.images.filter((item, currentIndex) => currentIndex !== index);
-    this.setData({ 'form.images': images, 'form.coverImage': images[0] || '' });
   },
 
   toggleColorTags() {
@@ -286,9 +292,13 @@ Page({
     this.setData({ 'form.purchaseDate': e.detail.value, 'form.purchaseDateText': e.detail.value });
   },
 
+  selectPurchaseChannel(e) {
+    this.setData({ 'form.purchaseChannel': String(e.currentTarget.dataset.channel || '') });
+  },
+
   submitForm() {
     const form = this.data.form;
-    const vehicles = (wx.getStorageSync(STORAGE_KEY) || []).map(normalizeVehicle);
+    const vehicles = this.vehicles || [];
     const nextVehicles = vehicles.map((vehicle) => {
       if (vehicle.id !== this.vehicleId) {
         return vehicle;
@@ -305,13 +315,14 @@ Page({
         tags: form.tagText,
         purchaseDate: form.purchaseDate,
         purchasePrice: form.purchasePrice,
+        purchaseChannel: form.purchaseChannel,
         note: form.note
       });
     });
-    wx.setStorageSync(STORAGE_KEY, nextVehicles);
-    wx.showToast({ title: TEXTS.saveSuccess, icon: 'success' });
-    setTimeout(() => {
-      wx.navigateBack();
-    }, 500);
+    const vehicle = nextVehicles.find((item) => item.id === this.vehicleId);
+    callGarageVehicles('update', { vehicle }).then(() => {
+      wx.showToast({ title: TEXTS.saveSuccess, icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 500);
+    }).catch((error) => wx.showToast({ title: error.message || '云端保存失败', icon: 'none' }));
   }
 });

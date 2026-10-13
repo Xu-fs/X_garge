@@ -45,6 +45,11 @@
       <view class="detail-value accent">{{vehicle.purchasePrice}}</view>
     </view>
 
+    <view class="detail-row" wx:if="{{vehicle.purchaseChannel}}">
+      <view class="detail-label">{{texts.purchaseChannelLabel}}</view>
+      <view class="detail-value">{{vehicle.purchaseChannel}}</view>
+    </view>
+
     <view class="detail-row" wx:if="{{vehicle.note}}">
       <view class="detail-label">{{texts.noteLabel}}</view>
       <view class="detail-value">{{vehicle.note}}</view>

@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "我的车库"
+  "navigationBarTitleText": "我的车库",
+  "usingComponents": {
+    "user-image-uploader": "/components/userImageUploader/index"
+  }
 }
